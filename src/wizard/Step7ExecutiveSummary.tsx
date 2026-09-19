@@ -316,7 +316,13 @@ export function Step7ExecutiveSummary({
   const top3Categories = sortedByGap.slice(0, 3);
   
   // Calculate overall metrics
-  const overallScore = scoredCategories.reduce((sum, c) => sum + c.current, 0) / (scoredCategories.length || 1);
+  // Prefer the backend's own "overall" score (single source of truth for scoring logic).
+  // Only fall back to a frontend-computed average if the backend didn't provide a valid one.
+  const backendOverall = normalizedScores.find((s) => s.category === "overall")?.current;
+  const overallScore =
+    typeof backendOverall === "number" && Number.isFinite(backendOverall)
+      ? backendOverall
+      : scoredCategories.reduce((sum, c) => sum + c.current, 0) / (scoredCategories.length || 1);
   const overallBenchmark = scoredCategories.reduce((sum, c) => sum + c.benchmark, 0) / (scoredCategories.length || 1);
   
   // Get projection data from growth simulation

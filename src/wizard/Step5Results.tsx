@@ -290,10 +290,15 @@ export function Step5Results({ results, onSelectPlan, onBack, companyName, busin
       };
     });
 
+  // Prefer the backend's own "overall" score (single source of truth for scoring logic).
+  // Only fall back to a frontend-computed average if the backend didn't provide a valid one.
+  const backendOverall = normalizedScores.find((s) => s.category === "overall")?.current;
   const overallScore =
-    scoredCategories.length > 0
-      ? scoredCategories.reduce((sum, s) => sum + s.current, 0) / scoredCategories.length
-      : 0;
+    typeof backendOverall === "number" && Number.isFinite(backendOverall)
+      ? backendOverall
+      : scoredCategories.length > 0
+        ? scoredCategories.reduce((sum, s) => sum + s.current, 0) / scoredCategories.length
+        : 0;
 
   const overallBenchmark =
     scoredCategories.length > 0

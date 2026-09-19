@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { UserInfo } from "@/api";
-import { ChevronLeft, Loader2 } from "lucide-react";
+import { ChevronLeft, Loader2, MailCheck } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -12,6 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface Step2BasicInfoProps {
   onNext: (userInfo: UserInfo) => void;
@@ -38,11 +46,70 @@ export function Step2BasicInfo({ onNext, onBack, loading, initialData }: Step2Ba
     industry: initialData?.industry || "",
     companySize: (initialData as any)?.companySize || "",
   });
-
+const [showEmailVerification, setShowEmailVerification] = useState(false);
+const [showOtpVerification, setShowOtpVerification] = useState(false);
+const [otp, setOtp] = useState("");
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onNext(userInfo);
+    setShowEmailVerification(true);
+};
+
+  const handleVerifyMail = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: userInfo.email }),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null);
+        console.error("send-otp failed:", errorBody);
+        alert("Failed to send OTP. Please try again.");
+        return;
+      }
+
+      setShowEmailVerification(false);
+      setShowOtpVerification(true);
+    } catch (error) {
+      console.error("send-otp network error:", error);
+      alert("Network error. Please check your connection and try again.");
+    }
   };
+
+  const handleVerifyOtp = async () => {
+    if (!/^\d{6}$/.test(otp)) {
+      alert("Please enter a valid 6-digit OTP.");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:5000/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: userInfo.email,
+          otp: otp,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("OTP verification failed:", data);
+        alert(data.message || "Invalid OTP. Please try again.");
+        return;
+      }
+
+      console.log("OTP verified successfully");
+      setShowOtpVerification(false);
+      onNext(userInfo);
+    } catch (error) {
+      console.error("OTP verification request failed:", error);
+      alert("Unable to connect to the backend");
+    }
+  };
+
 
   const isValid =
     userInfo.firstName.trim() &&
@@ -61,6 +128,7 @@ export function Step2BasicInfo({ onNext, onBack, loading, initialData }: Step2Ba
           We'll use this information to personalize your assessment and insights. No spam. No sales pressure.
         </p>
       </div>
+
 
       <GlowingCard className="max-w-2xl mx-auto glass-card-solid">
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -206,7 +274,85 @@ export function Step2BasicInfo({ onNext, onBack, loading, initialData }: Step2Ba
             </Button>
           </div>
         </form>
+ 
       </GlowingCard>
+
+      <Dialog open={showEmailVerification} onOpenChange={setShowEmailVerification}>
+        <DialogContent className="max-w-sm sm:max-w-md bg-card border-border">
+          <DialogHeader className="items-center text-center space-y-3">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <MailCheck className="w-6 h-6 text-primary" />
+            </div>
+            <DialogTitle className="text-xl font-semibold text-foreground">
+              Verify Your Email
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-sm">
+              We've sent a verification link to the email address below. Please check your inbox
+              and click the link to continue.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-center">
+            <p className="text-sm font-medium text-foreground break-all">{userInfo.email}</p>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-col gap-2 pt-2">
+            <Button
+              type="button"
+              onClick={handleVerifyMail}
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground transition-smooth"
+            >
+              Verify Mail
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setShowEmailVerification(false)}
+              className="w-full text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-smooth"
+            >
+              Maybe Later
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showOtpVerification} onOpenChange={setShowOtpVerification}>
+        <DialogContent className="max-w-sm sm:max-w-md bg-card border-border">
+          <DialogHeader className="items-center text-center space-y-3">
+            <DialogTitle className="text-xl font-semibold text-foreground">
+              OTP Verification
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-sm">
+              A 6-digit OTP was sent to <span className="text-foreground font-medium">{userInfo.email}</span>.
+              Please enter it below.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <Label htmlFor="otp" className="text-foreground text-sm font-medium">
+              Enter OTP
+            </Label>
+            <Input
+              id="otp"
+              type="text"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              className="input-enterprise"
+              placeholder="Enter 6-digit OTP"
+            />
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-col gap-2 pt-2">
+            <Button
+              type="button"
+              onClick={handleVerifyOtp}
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground transition-smooth"
+            >
+              Verify OTP
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
