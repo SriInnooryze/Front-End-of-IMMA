@@ -49,6 +49,7 @@ export function Step2BasicInfo({ onNext, onBack, loading, initialData }: Step2Ba
 const [showEmailVerification, setShowEmailVerification] = useState(false);
 const [showOtpVerification, setShowOtpVerification] = useState(false);
 const [otp, setOtp] = useState("");
+const [otpError, setOtpError] = useState("");
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setShowEmailVerification(true);
@@ -83,6 +84,8 @@ const [otp, setOtp] = useState("");
       return;
     }
 
+    setOtpError("");
+
     try {
       const response = await fetch("http://localhost:5000/api/auth/verify-otp", {
         method: "POST",
@@ -97,11 +100,14 @@ const [otp, setOtp] = useState("");
 
       if (!response.ok) {
         console.error("OTP verification failed:", data);
-        alert(data.message || "Invalid OTP. Please try again.");
+        setOtpError(
+          "The OTP you entered is incorrect. Please check the code sent to your email and try again."
+        );
         return;
       }
 
       console.log("OTP verified successfully");
+      setOtpError("");
       setShowOtpVerification(false);
       onNext(userInfo);
     } catch (error) {
@@ -340,6 +346,11 @@ const [otp, setOtp] = useState("");
               className="input-enterprise"
               placeholder="Enter 6-digit OTP"
             />
+            {otpError && (
+              <p className="text-sm text-red-500 mt-2">
+                {otpError}
+              </p>
+            )}
           </div>
 
           <DialogFooter className="flex-col sm:flex-col gap-2 pt-2">
